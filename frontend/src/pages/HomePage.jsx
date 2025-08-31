@@ -1,35 +1,62 @@
-import React, { useEffect, useState } from 'react';
-import API from '../api/api';
-import MovieCard from '../components/MovieCard';
-import LoadingSpinner from '../components/LoadingSpinner';
 
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import MovieCard from "../components/MovieCard";
 
-export default function HomePage() {
-const [movies, setMovies] = useState([]);
-const [loading, setLoading] = useState(true);
+function HomePage() {
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [genre, setGenre] = useState("");
 
+  useEffect(() => {
+    fetchMovies();
+  }, [search, genre]);
 
-useEffect(() => {
-async function load() {
-setLoading(true);
-try {
-const res = await API.get('/movies?limit=12');
-setMovies(res.data.data || []);
-} catch (err) { console.error(err); }
-finally { setLoading(false); }
+  const fetchMovies = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/movies", {
+        params: { search, genre }
+      });
+      setMovies(data);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <h1>Featured Movies</h1>
+
+      {/* Search & Filter */}
+      <div style={{ marginBottom: "1rem" }}>
+        <input
+          type="text"
+          placeholder="Search by title..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select value={genre} onChange={(e) => setGenre(e.target.value)}>
+          <option value="">All Genres</option>
+          <option value="Action">Action</option>
+          <option value="Drama">Drama</option>
+          <option value="Comedy">Comedy</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <div className="movie-grid">
+          {movies.map((movie) => (
+            <MovieCard key={movie._id} movie={movie} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
-load();
-}, []);
 
-
-return (
-<div className="page">
-<h1>Featured Movies</h1>
-{loading ? <LoadingSpinner /> : (
-<div className="grid">
-{movies.map(m => <MovieCard key={m._id} movie={m} />)}
-</div>
-)}
-</div>
-);
-}
+export default HomePage;
