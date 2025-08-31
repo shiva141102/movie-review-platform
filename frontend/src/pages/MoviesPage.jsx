@@ -1,38 +1,61 @@
-import API from '../api/api';
-import MovieCard from '../components/MovieCard';
-import LoadingSpinner from '../components/LoadingSpinner';
 
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import api from "../services/api";
+import ReviewForm from "../components/ReviewForm";
 
-export default function MoviesPage() {
-const [movies, setMovies] = useState([]);
-const [query, setQuery] = useState('');
-const [loading, setLoading] = useState(false);
+function MoviePage() {
+  const { id } = useParams();
+  const [movie, setMovie] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [inWatchlist, setInWatchlist] = useState(false);
 
+  useEffect(() => {
+    fetchMovie();
+  }, [id]);
 
-useEffect(() => {
-async function fetch() {
-setLoading(true);
-try {
-const res = await API.get(`/movies?search=${encodeURIComponent(query)}&limit=24`);
-setMovies(res.data.data || []);
-} catch (err) { console.error(err); }
-finally { setLoading(false); }
+  const fetchMovie = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/movies/${id}`);
+      setMovie(data);
+      // Check if in watchlist
+      const wl = await api.get(`/users/123/watchlist`); // replace 123 with logged-in user id
+      setInWatchlist(wl.data.some((m) => m._id === id));
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  const toggleWatchlist = async () => {
+    try {
+      if (inWatchlist) {
+        await api.delete(`/users/123/watchlist/${id}`);
+        setInWatchlist(false);
+      } else {
+        await api.post(`/users/123/watchlist`, { movieId: id });
+        setInWatchlist(true);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (loading) return <p>Loading...</p>;
+  if (!movie) return <p>Movie not found.</p>;
+
+  return (
+    <div>
+      <h1>{movie.title}</h1>
+      <p>{movie.synopsis}</p>
+      <p>⭐ {movie.averageRating}</p>
+      <button onClick={toggleWatchlist}>
+        {inWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
+      </button>
+      <ReviewForm movieId={id} />
+    </div>
+  );
 }
-fetch();
-}, [query]);
 
-
-return (
-<div className="page">
-<h1>All Movies</h1>
-<div style={{ marginBottom: 12 }}>
-<input placeholder="Search movies..." value={query} onChange={e => setQuery(e.target.value)} />
-</div>
-{loading ? <LoadingSpinner /> : (
-<div className="grid">
-{movies.map(m => <MovieCard key={m._id} movie={m} />)}
-</div>
-)}
-</div>
-);
-}
+export default MoviePage;
